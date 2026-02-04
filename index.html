@@ -1,0 +1,205 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Fruit Recognition - PKWU</title>
+
+<!-- TensorFlow & Teachable Machine -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.12.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+}
+
+/* CARD */
+.lobby {
+    width: 420px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(12px);
+    padding: 30px 26px;
+    border-radius: 22px;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.35);
+    text-align: center;
+}
+
+/* TITLE */
+h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.subtitle {
+    margin-top: 6px;
+    font-size: 15px;
+    opacity: 0.85;
+}
+
+/* BUTTON */
+.upload-wrapper {
+    margin-top: 26px;
+}
+
+.upload-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(135deg, #00c6ff, #0072ff);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.upload-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 35px rgba(0,114,255,0.45);
+}
+
+.upload-btn:active {
+    transform: scale(0.97);
+}
+
+#fileInput {
+    display: none;
+}
+
+.status {
+    margin-top: 8px;
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+/* IMAGE */
+#preview {
+    width: 100%;
+    margin-top: 18px;
+    border-radius: 14px;
+    display: none;
+}
+
+/* RESULT */
+#result {
+    margin-top: 16px;
+    font-size: 17px;
+    font-weight: 600;
+    min-height: 40px;
+}
+
+/* FOOTER */
+.footer {
+    margin-top: 22px;
+    font-size: 12px;
+    opacity: 0.75;
+}
+</style>
+</head>
+
+<body>
+
+<div class="lobby">
+    <h1>Fruit Recognition</h1>
+    <div class="subtitle">Ulangan PKWU</div>
+
+    <div class="upload-wrapper">
+        <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+            Upload Gambar Buah
+        </button>
+        <input id="fileInput" type="file" accept="image/*" onchange="predictImage(event)">
+        <div class="status" id="status">Memuat model...</div>
+    </div>
+
+    <img id="preview">
+    <div id="result"></div>
+
+    <div class="footer">
+        Nathanael Quinlan Nainggolan
+    </div>
+</div>
+
+<script>
+const MODEL_URL = "https://teachablemachine.withgoogle.com/models/egHGhZRpV/";
+let model;
+
+const statusEl = document.getElementById("status");
+const resultEl = document.getElementById("result");
+const img = document.getElementById("preview");
+
+// LOAD MODEL
+async function loadModel() {
+    try {
+        model = await tmImage.load(
+            MODEL_URL + "model.json",
+            MODEL_URL + "metadata.json"
+        );
+        statusEl.innerText = "Model siap digunakan ✔️";
+    } catch (e) {
+        statusEl.innerText = "Gagal memuat model ❌";
+        console.error(e);
+    }
+}
+loadModel();
+
+// PREDICT IMAGE (FIX UNKNOWN DETECTION)
+async function predictImage(event) {
+    if (!model) return;
+
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const url = URL.createObjectURL(file);
+    img.src = url;
+    img.style.display = "block";
+
+    resultEl.innerText = "Menganalisis gambar...";
+
+    img.onload = async () => {
+        const predictions = await model.predict(img);
+
+        // sort confidence tertinggi
+        predictions.sort((a, b) => b.probability - a.probability);
+
+        const top1 = predictions[0];
+        const top2 = predictions[1];
+
+        const conf1 = top1.probability * 100;
+        const conf2 = top2.probability * 100;
+        const gap = conf1 - conf2;
+
+        // LOGIKA UNKNOWN
+        if (conf1 < 70 || gap < 15) {
+            resultEl.innerHTML = `
+                <span style="color:#ffb3b3">
+                Buah belum terdaftar di dalam sistem
+                </span>
+            `;
+        } else {
+            resultEl.innerHTML = `
+                <span style="color:#b6e0ff">${top1.className}</span><br>
+                ${conf1.toFixed(2)}%
+            `;
+        }
+
+        URL.revokeObjectURL(url);
+    };
+}
+</script>
+
+</body>
+</html>
